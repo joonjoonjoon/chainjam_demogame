@@ -3,13 +3,15 @@ using System.Collections;
 
 public class Player : MonoBehaviour {
 	
-	public ChainJam.PLAYER playerID;					// Useful to remember which player it is :)
-	
 	public float speed;									// Horizontal movement speed
 	public float jumpStrength;							// Jump power
 	public float jumpStrengthMultiplier;				// Should be 1, but it can be changed by other functions
 	public float gravity;								// Rigidbodies can have their own gravity, but this makes it all a bit more tweakable
 	
+	public float feetDepth = 0.7f;
+	public float armLength = 0.6f;
+
+	public Transform spawnPoint;
 	public Transform bottomLeftPoint;					
 	public Transform bottomMiddlePoint;
 	public Transform bottomRightPoint;					// This are points inside the player object, from which we cast a "ray" to find out if it's touching something
@@ -23,8 +25,10 @@ public class Player : MonoBehaviour {
 	private KeyCode keyRight;	
 	private KeyCode keyUp;
 
+
 	void Start () {
 		startScale = transform.localScale;
+		transform.position = spawnPoint.position;
 	}
 	
 	void Update() {
@@ -33,26 +37,25 @@ public class Player : MonoBehaviour {
 			// Jump and Squish check
 
 			RaycastHit bottomLeft, bottomMiddle, bottomRight, left, right;
-			Physics.Raycast (bottomLeftPoint.position, -bottomLeftPoint.up, out bottomLeft, 0.6f * transform.localScale.y);
-			Physics.Raycast (bottomMiddlePoint.position, -bottomMiddlePoint.up , out bottomMiddle, 0.6f  * transform.localScale.y);
-			Physics.Raycast (bottomRightPoint.position, -bottomRightPoint.up, out bottomRight, 0.6f  * transform.localScale.y);		
-			Physics.Raycast (transform.position, transform.right, out right, 0.6f  * transform.localScale.x);		
-			Physics.Raycast (transform.position, -transform.right, out left, 0.6f  * transform.localScale.x);		
+			Physics.Raycast (bottomLeftPoint.position, -bottomLeftPoint.up, out bottomLeft, feetDepth * transform.localScale.y);
+			Physics.Raycast (bottomMiddlePoint.position, -bottomMiddlePoint.up , out bottomMiddle, feetDepth  * transform.localScale.y);
+			Physics.Raycast (bottomRightPoint.position, -bottomRightPoint.up, out bottomRight, feetDepth  * transform.localScale.y);		
+			Physics.Raycast (transform.position, transform.right, out right, armLength  * transform.localScale.x);		
+			Physics.Raycast (transform.position, -transform.right, out left, armLength  * transform.localScale.x);		
 
-			if(bottomLeft.collider && bottomLeft.collider.tag == "Player")
-			{
-				bottomLeft.collider.transform.GetComponent<Player>().Squish(this);
+			if(bottomLeft.collider && bottomLeft.collider.tag == "Good") { 
+				bottomLeft.collider.transform.GetComponent<Cube>().Squish();
+
 			}
-			if(bottomMiddle.collider && bottomMiddle.collider.tag == "Player")
-			{
-				bottomMiddle.collider.transform.GetComponent<Player>().Squish(this);
+			if(bottomMiddle.collider && bottomMiddle.collider.tag == "Good") { 
+				bottomMiddle.collider.transform.GetComponent<Cube>().Squish();
 			}
-			if(bottomRight.collider && bottomRight.collider.tag == "Player")
-			{
-				bottomRight.collider.transform.GetComponent<Player>().Squish(this);
+			if(bottomRight.collider && bottomRight.collider.tag == "Good") { 
+				bottomRight.collider.transform.GetComponent<Cube>().Squish();
 			}
-			
-			if(ChainJam.GetButtonJustPressed(playerID,ChainJam.BUTTON.A) || ChainJam.GetButtonJustPressed(playerID,ChainJam.BUTTON.B))
+		
+
+			if(ChainJam.GetButtonJustPressed(ChainJam.BUTTON.A) || ChainJam.GetButtonJustPressed(ChainJam.BUTTON.B))
 			{
 				if (bottomLeft.collider || bottomMiddle.collider || bottomRight.collider) {	
 					rigidbody.velocity = (new Vector3(0, jumpStrength * jumpStrengthMultiplier,0));
@@ -74,7 +77,7 @@ public class Player : MonoBehaviour {
 					Debug.Log("side jump right" + jumpStrength + " " + jumpStrengthMultiplier );
 				}
 			}
-			if((ChainJam.GetButtonJustReleased(playerID,ChainJam.BUTTON.A) || ChainJam.GetButtonJustReleased(playerID,ChainJam.BUTTON.B)) && rigidbody.velocity.y > 0 )
+			if((ChainJam.GetButtonJustReleased(ChainJam.BUTTON.A) || ChainJam.GetButtonJustReleased(ChainJam.BUTTON.B)) && rigidbody.velocity.y > 0 )
 			{
 				rigidbody.velocity = (new Vector3(rigidbody.velocity.x, rigidbody.velocity.y / 2,0));
 			}
@@ -84,43 +87,50 @@ public class Player : MonoBehaviour {
 	
 	// Update is called once per frame
 	void FixedUpdate () {
+
+		// MOVEMENT
 		if(!squished)
 		{
-		
-			if(ChainJam.GetButtonPressed(playerID,ChainJam.BUTTON.LEFT) && lockLeft <= 0)
+			if(ChainJam.GetButtonPressed(ChainJam.BUTTON.LEFT) && lockLeft <= 0)
 			{
 				rigidbody.velocity = (new Vector3(-1 * speed * Time.deltaTime,rigidbody.velocity.y,0));
 			}
-			if(ChainJam.GetButtonPressed(playerID,ChainJam.BUTTON.RIGHT)  && lockRight <= 0)
+			if(ChainJam.GetButtonPressed(ChainJam.BUTTON.RIGHT)  && lockRight <= 0)
 			{
 				rigidbody.velocity=(new Vector3(speed * Time.deltaTime,rigidbody.velocity.y,0));
 			}
 		}
 
-		
+		// FAKE GRAVITY
 		rigidbody.AddForce(new Vector3(0,gravity,0));
-		
+
+		// TINY COOLDOWN FOR WALL JUMP
 		if(lockLeft > 0) lockLeft -= Time.deltaTime;
 		if(lockRight > 0) lockRight -= Time.deltaTime;
 	}
 	
 	void OnGUI() {
-		
-		Debug.DrawRay (bottomLeftPoint.position, 	-bottomLeftPoint.up*1f, Color.green,0.1f);
-		Debug.DrawRay (bottomMiddlePoint.position, 	-bottomMiddlePoint.up*1f, Color.red,0.1f);
-		Debug.DrawRay (bottomRightPoint.position, 	-bottomRightPoint.up*1f, Color.blue,0.1f);
+		// DRAWS THE LINES UNDER THE PLAYER IN THE SCENE VIEW
+		Debug.DrawRay (bottomLeftPoint.position, 	-bottomLeftPoint.up*feetDepth, Color.green,0.1f);
+		Debug.DrawRay (bottomMiddlePoint.position, 	-bottomMiddlePoint.up*feetDepth, Color.red,0.1f);
+		Debug.DrawRay (bottomRightPoint.position, 	-bottomRightPoint.up*feetDepth, Color.blue,0.1f);
 		
 	}
-	
-	public void Squish(Player squishedBy=null) {
+
+	void OnCollisionEnter(Collision collision) {
+		if(collision.collider.tag == "Bad" && !squished)
+		{
+			ChainJam.RemovePoints(1);
+			Squish();
+		}
+
+	}
+
+
+	public void Squish() {
+		// EFFECTS ON PLAYER WHEN SQUISHED
 		if(!squished)
 		{
-			if(squishedBy)
-			{
-				ChainJam.AddPoints(squishedBy.playerID,1	);
-				if(ChainJam.GetTotalPoints() >= 10) ChainJam.GameEnd();
-			}
-
 			SoundManager.i.Play(SoundManager.i.Squish);
 			squished =true;
 			iTween.ScaleTo(gameObject,iTween.Hash(
@@ -138,12 +148,13 @@ public class Player : MonoBehaviour {
 	
 	IEnumerator Respawn() {
 		yield return new WaitForSeconds(2);
-		
+
 		iTween.ScaleTo(gameObject,iTween.Hash("scale",startScale,"time", 0.2f,"easeType", "linear"));
 		squished = false;
 		SoundManager.i.Play(SoundManager.i.Respawn);
-		
-		transform.position = SpawnPoint.GetRandomSpawnpoint().position;
+
+		transform.position = spawnPoint.position;
+
 	}
 	
 
