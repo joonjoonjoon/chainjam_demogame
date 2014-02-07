@@ -182,7 +182,7 @@ public class ChainJam : MonoBehaviour {
 		set 
 		{
 			int points = value - _player1Points;
-			if (value >= 0 && value <10) 
+			if (value >= 0 && value <=10) 
 			{
 				Application.ExternalCall("PlayerOnePoints", points);
 				_player1Points = value;
